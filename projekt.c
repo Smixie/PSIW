@@ -5,11 +5,16 @@
 #include <sys/msg.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <readline/readline.h>
+#include <readline/history.h>
+#include <sys/stat.h>
+
 
 struct msgbuf
 {
     long mtype;
     char mtext[500];
+    char mtext2[500];
 };
 
 int getKey(char *name)
@@ -58,43 +63,54 @@ int main(int argc, char* argv[])
     msgID = msgget(key,IPC_CREAT | 0666);
     if(msgID == -1){
         perror("Error: msgget failed");
-        return 1;
+        exit(1);
     }
 
     int secondKey;
     int msgID2;
     char input[150];
     char commands[150];
-
+    char mkfifoName[150];
+    char *i;
     while (1)
     {
         struct msgbuf message;
-        
+        struct msgbuf message2;
         if(fork() == 0)
         {   
-            struct msgbuf message2;
             printf("actual user %s > ",argv[1]);
-            scanf("%s %s",input,commands);
+            //i = readline(" ");
+            scanf("%s \"%[^\"]\" %s" ,input,commands,mkfifoName);
 
             secondKey = getKey(input);
             msgID2 = msgget(secondKey,IPC_CREAT | 0666);
             if(msgID2 == -1){
                 perror("Error: msgget failed");
-                return 1;
+                exit(1);
             }
             
-            strcpy(message2.mtext,commands);
-            message2.mtype = 1;
-            msgsnd(msgID2,&message2,sizeof(message2),0);
-            if(msgsnd(msgID2,&message2,sizeof(message2),0) == -1)
+            if(mkfifo(mkfifoName,0666) == -1){
+                perror("Error: mkfifo failed");
+                exit(1);
+            }else
             {
-                perror("Error: msgsnd failed");
-                return 1;
+                strcpy(message2.mtext,commands);
+                strcpy(message2.mtext2,mkfifoName);
+                message2.mtype = 1;
+                if(msgsnd(msgID2,&message2,sizeof(message2),0) == -1)
+                {
+                    perror("Error: msgsnd failed");
+                    exit(1);
+                }
             }
         }
         else{
-            msgrcv(msgID,&message,sizeof(message),1,0);
-            printf("receive %s",message.mtext);
+            if(msgrcv(msgID,&message,sizeof(message),1,0) == 0)
+            {
+                perror("Error: msgrcv failed");
+                exit(1);
+            }
+            printf("\nreceive %s\n %s\n",message.mtext,message.mtext2);
         }
         
    }
