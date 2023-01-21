@@ -17,51 +17,75 @@ struct msgbuf
     char mtext2[500];
 };
 
-
 int getKey(char *name)
 {
-    FILE* fp = fopen("configFile.txt","r");
+    FILE *fp = fopen("configFile.txt", "r");
     char line[50];
-    
-    char *array[2];
-    int i=0;
-    while (fgets(line, 50, fp)!= NULL){
 
-        char * ptr = strtok(line," : ");
-        if(strcmp(ptr,name) == 0){ 
-            while(ptr != NULL)
+    char *array[2];
+    int i = 0;
+    while (fgets(line, 50, fp) != NULL)
+    {
+
+        char *ptr = strtok(line, " : ");
+        if (strcmp(ptr, name) == 0)
+        {
+            while (ptr != NULL)
             {
                 array[i++] = ptr;
-                ptr = strtok(NULL," : ");            
+                ptr = strtok(NULL, " : ");
             }
             break;
-        } 
+        }
     }
     fclose(fp);
     int key = atoi(array[1]);
-    if(key == 0)
+    if (key == 0)
     {
         printf("It is not int\n");
     }
     return key;
 }
 
-int key;
-int main(int argc, char* argv[])
+int spawn_proc(int in, int out, char **cm)
 {
-    
-    if(argc < 2)
+    pid_t pid;
+
+    if ((pid = fork()) == 0)
     {
-        printf("Usage: %s <usr>",argv[0]);
+        if (in != 0)
+        {
+            dup2(in, 0);
+            close(in);
+        }
+
+        if (out != 1)
+        {
+            dup2(out, 1);
+            close(out);
+        }
+        return execvp(cm[0], cm);
     }
-    
+
+    return pid;
+}
+
+int key;
+int main(int argc, char *argv[])
+{
+
+    if (argc < 2)
+    {
+        printf("Usage: %s <usr>", argv[0]);
+    }
 
     key = getKey(argv[1]);
 
+    // Tworzenie globalnej komunikacji
     int msgID;
-    
-    msgID = msgget(key,IPC_CREAT | 0666);
-    if(msgID == -1){
+    msgID = msgget(key, IPC_CREAT | 0666);
+    if (msgID == -1)
+    {
         perror("Error: msgget failed");
         exit(1);
     }
@@ -76,90 +100,125 @@ int main(int argc, char* argv[])
     {
         struct msgbuf message;
         struct msgbuf message2;
-        if(fork() == 0)
-        {   
-            printf("actual user %s > ",argv[1]);
-            //i = readline(" ");
-            scanf("%s \"%[^\"]\" %s" ,input,commands,mkfifoName);
+        if (fork() == 0)
+        {
+            // Czytanie z lini polecen
+            printf("actual user %s > ", argv[1]);
+            // i = readline(" ");
+            scanf("%s \"%[^\"]\" %s", input, commands, mkfifoName);
 
             secondKey = getKey(input);
-            msgID2 = msgget(secondKey,IPC_CREAT | 0666);
-            if(msgID2 == -1){
+            // Tworzenie kolejki komunikatów dla wywolanego polecenia
+            msgID2 = msgget(secondKey, IPC_CREAT | 0666);
+            if (msgID2 == -1)
+            {
                 perror("Error: msgget failed");
                 exit(1);
             }
-            
-            
-            if(mkfifo(mkfifoName,0666) == -1){
+
+            // Tworzenie kolejki FIFO
+            if (mkfifo(mkfifoName, 0666) == -1)
+            {
                 perror("Error: mkfifo failed");
                 exit(1);
-            }else
+            }
+            else
             {
-                // int pdesk2;
-                // pdesk2 = open(mkfifoName,O_RDONLY);
-                // char buf[100];
-
-                strcpy(message2.mtext,commands);
-                strcpy(message2.mtext2,mkfifoName);
-                message2.mtype = 1;
-                if(msgsnd(msgID2,&message2,sizeof(message2),0) == -1)
+                // Potomny czeka na powrót z FIFO
+                // Macierzysty wysyła
+                if (fork() == 0)
                 {
-                    perror("Error: msgsnd failed");
-                    exit(1);
+                    int pdesk2;
+                    pdesk2 = open(mkfifoName, O_RDONLY);
+                    char buf[100];
+
+                    read(pdesk2, buf, 7);
+                    close(pdesk2);
+                    printf("odczytano %s", buf);
                 }
-                // read(pdesk2,buf,10);
-                // printf("odczytano %s",buf);
+                else
+                {
+                    // Wysyłanie wiadomosci
+                    strcpy(message2.mtext, commands);
+                    strcpy(message2.mtext2, mkfifoName);
+                    message2.mtype = 1;
+                    if (msgsnd(msgID2, &message2, sizeof(message2), 0) == -1)
+                    {
+                        perror("Error: msgsnd failed");
+                        exit(1);
+                    }
+                }
             }
         }
-        else{
+        else
+        {
             int rozmiar;
-            rozmiar = msgrcv(msgID,&message,sizeof(message),1,0);
-            if(rozmiar == -1)
+            // Odbior wyslanej wiadomoci
+            rozmiar = msgrcv(msgID, &message, sizeof(message), 1, 0);
+            if (rozmiar == -1)
             {
                 perror("Error: msgrcv failed");
                 exit(1);
             }
             else
             {
-                printf("\nreceive %s\n",message.mtext);
+                printf("\nreceive %s\n", message.mtext);
 
-                char *p = strtok(message.mtext,"|");
+                // Podzial komend i zapis ich do tablicy
+                char *p = strtok(message.mtext, "|");
                 char *q[10];
-                int i=0;
-                while( p != NULL)
+                int i = 0;
+                while (p != NULL)
                 {
                     q[i] = p;
-                    p = strtok(NULL,"|");
+                    p = strtok(NULL, "|");
                     i++;
                 }
-                int k=0;
+                int k = 0;
                 char *cm[10][20];
                 int cmdSize[10];
-                while(k<i)
-                {   
-                    char *temp = strtok(q[k]," ");
-                    int j=0;
-                    while( temp != NULL)
-                    {    
+
+                while (k < i)
+                {
+                    char *temp = strtok(q[k], " ");
+                    int j = 0;
+                    while (temp != NULL)
+                    {
                         cm[k][j] = temp;
-                        temp = strtok(NULL," ");
+                        temp = strtok(NULL, " ");
                         j++;
                     }
                     cmdSize[k] = j;
                     k++;
                 }
+                // Wykonywanie koment
+                int fd[2],in =0;
+                for (int ile = 0; ile < i - 1; ile++)
+                {
+                    pipe(fd);
+                    spawn_proc(in,fd[1],cm[ile]);
+                    close(fd[1]);
+                    in = fd[0];
+                }
+                if (in != 0)
+                    dup2 (in, 0);
+                
+                execvp (cm[i][0], cm[i]);
+
             }
-            // int pdesk;
-            // pdesk = open(message.mtext2,O_WRONLY);
-            // if(pdesk == -1)
-            // {
-            //     perror("Otwarcie potoku do zapisu");
-            //     exit(1);
-            // }
-            // write(pdesk,"Hello!",7);
+
+            // Zapis przy pomocy kolejki FIFO
+            int pdesk;
+            pdesk = open(message.mtext2, O_WRONLY);
+            if (pdesk == -1)
+            {
+                perror("Otwarcie potoku do zapisu");
+                exit(1);
+            }
+            write(pdesk, "Hello!", 7);
+            close(pdesk);
         }
-        
-   }
-    msgctl(msgID,IPC_RMID,NULL);
-    msgctl(msgID2,IPC_RMID,NULL);
+    }
+    msgctl(msgID, IPC_RMID, NULL);
+    msgctl(msgID2, IPC_RMID, NULL);
 }
