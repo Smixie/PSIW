@@ -9,6 +9,7 @@
 #include <readline/history.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <wait.h>
 
 struct msgbuf
 {
@@ -17,10 +18,6 @@ struct msgbuf
     char mtext2[500];
 };
 
-struct command
-{
-    const char **argv;
-};
 
 int getKey(char *name)
 {
@@ -47,7 +44,7 @@ int getKey(char *name)
     int key = atoi(array[1]);
     if (key == 0)
     {
-        printf("It is not int\n");
+        printf("Key error\n");
     }
     return key;
 }
@@ -69,9 +66,9 @@ int spawn_proc(int in, int out, char *cm[])
             dup2(out, 1);
             close(out);
         }
+        printf("%s %s",cm[0],cm[1]);
         return execvp(cm[0], cm);
     }
-
     return pid;
 }
 
@@ -139,6 +136,7 @@ int main(int argc, char *argv[])
 
                     read(pdesk2, buf, 7);
                     close(pdesk2);
+                    unlink(mkfifoName);
                     printf("odczytano %s", buf);
                 }
                 else
@@ -173,6 +171,16 @@ int main(int argc, char *argv[])
                 char *p = strtok(message.mtext, "|");
                 char *q[10];
                 int i = 0;
+
+                // Zapis przy pomocy kolejki FIFO
+                int pdesk;
+                pdesk = open(message.mtext2, O_WRONLY);
+                if (pdesk == -1)
+                {
+                    perror("Otwarcie potoku do zapisu");
+                    exit(1);
+                }
+
                 while (p != NULL)
                 {
                     q[i] = p;
@@ -198,32 +206,23 @@ int main(int argc, char *argv[])
                 }
                 
                 // Wykonywanie komend
-                int fd[2],in =0;
-                for (int ile = 0; ile < i - 1; ile++)
+                if(fork() == 0)
                 {
-                    pipe(fd);
-                    spawn_proc(in,fd[1],cm[ile]);
-                    close(fd[1]);
-                    in = fd[0];
+                    int fd[2],in =0;
+                    for (int ile = 0; ile < i - 1; ile++)
+                    {
+                        pipe(fd);
+                        spawn_proc(in,fd[1],cm[ile]);
+                        close(fd[1]);
+                        in = fd[0];
+                    }
+                    if (in != 0)
+                        dup2 (in, 0);
+                    execvp (cm[i-1][0], cm [i-1]);
                 }
-                if (in != 0)
-                    dup2 (in, 0);
-                
-                //printf("%s",cm[i-1][0]);
-                execvp (cm[i-1][0], cm [i-1]);
-
-            }
-
-            // Zapis przy pomocy kolejki FIFO
-            int pdesk;
-            pdesk = open(message.mtext2, O_WRONLY);
-            if (pdesk == -1)
-            {
-                perror("Otwarcie potoku do zapisu");
-                exit(1);
-            }
-            write(pdesk, "Hello!", 7);
-            close(pdesk);
+                write(pdesk, "Hello!", 7);
+                close(pdesk);
+            }  
         }
     }
     msgctl(msgID, IPC_RMID, NULL);
