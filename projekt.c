@@ -8,13 +8,18 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <sys/stat.h>
-
+#include <fcntl.h>
 
 struct msgbuf
 {
     long mtype;
     char mtext[500];
     char mtext2[500];
+};
+
+struct command
+{
+    char *arg[20];
 };
 
 int getKey(char *name)
@@ -27,8 +32,7 @@ int getKey(char *name)
     while (fgets(line, 50, fp)!= NULL){
 
         char * ptr = strtok(line," : ");
-        if(strcmp(ptr,name) == 0){
-            
+        if(strcmp(ptr,name) == 0){ 
             while(ptr != NULL)
             {
                 array[i++] = ptr;
@@ -105,12 +109,48 @@ int main(int argc, char* argv[])
             }
         }
         else{
-            if(msgrcv(msgID,&message,sizeof(message),1,0) == 0)
+            int rozmiar;
+            rozmiar = msgrcv(msgID,&message,sizeof(message),1,0);
+            if(rozmiar == -1)
             {
                 perror("Error: msgrcv failed");
                 exit(1);
             }
-            printf("\nreceive %s\n %s\n",message.mtext,message.mtext2);
+            else
+            {
+                // int pdesk;
+                // pdesk = open(message.mtext2,O_WRONLY);
+                // if(pdesk == -1)
+                // {
+                //     perror("Otwarcie potoku do zapisu");
+                //     exit(1);
+                // }
+                printf("\nreceive %s\n %s\n",message.mtext,message.mtext2);
+                struct command cmd[2];
+
+                char *p = strtok(message.mtext," | ");
+
+                int i=0;
+                while( p!=NULL)
+                {
+                    int j=0;
+                    char *q = strtok(p," ");
+                    while(q != NULL)
+                    {
+                        cmd[i].arg[j] = q;
+                        printf("%s",q);
+                        q = strtok(NULL," ");
+                        j++;
+                    }
+                    cmd[i].arg[j] = NULL;
+                    p = strtok(NULL,"|");
+                    
+                    i++;
+                }
+
+            }
+
+            
         }
         
    }
