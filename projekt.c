@@ -75,7 +75,6 @@ int main(int argc, char* argv[])
             struct msgbuf message2;
             printf("actual user %s > ",argv[1]);
             scanf("%s %s",input,commands);
-            printf("%s" , commands);
 
             secondKey = getKey(input);
             msgID2 = msgget(secondKey,IPC_CREAT | 0666);
@@ -84,14 +83,21 @@ int main(int argc, char* argv[])
                 return 1;
             }
             
-            strcpy(message2.mtext,"wass");
+            strcpy(message2.mtext,commands);
+            message2.mtype = 1;
             msgsnd(msgID2,&message2,sizeof(message2),0);
+            if(msgsnd(msgID2,&message2,sizeof(message2),0) == -1)
+            {
+                perror("Error: msgsnd failed");
+                return 1;
+            }
         }
         else{
-            msgrcv(msgID,&message,sizeof(message),2,0);
+            msgrcv(msgID,&message,sizeof(message),1,0);
             printf("receive %s",message.mtext);
         }
         
    }
-    
+    msgctl(msgID,IPC_RMID,NULL);
+    msgctl(msgID2,IPC_RMID,NULL);
 }
