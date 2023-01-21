@@ -128,22 +128,34 @@ int main(int argc, char* argv[])
                 printf("\nreceive %s\n %s\n",message.mtext,message.mtext2);
                 struct command cmd[2];
 
-                printf("%s",message.mtext);
-                char *p = strtok(message.mtext," | ");
-                char zobaczymy[3][5];
-                int i=0,j=0;
+                char *p = strtok(message.mtext,"|");
+                char *q[10];
+                int i=0;
                 while( p != NULL)
                 {
-                    char *q = strtok(p," ");
-                    while( q != NULL)
-                    {   
-                        printf("%s ",q);
-                        q = strtok(NULL," ");
-                    }
-                    printf("\n");
-                    p = strtok(NULL," | ");
+                    q[i] = p;
+                    p = strtok(NULL,"|");
+                    i++;
                 }
-
+                int k=0;
+                char *cm[10][20];
+                while(k<i)
+                {
+                    
+                    char *temp = strtok(q[k]," ");
+                    int j=0;
+                    while( temp != NULL)
+                    {    
+                        cm[k][j] = temp;
+                        temp = strtok(NULL," ");
+                    }
+                    k++;
+                }
+                for(i=0; i<k;i++){
+                    for(int j=0; j<sizeof(cm[i]);i++){
+                        printf("%s",cm[i][j]);
+                    }
+                }
             }
 
             
