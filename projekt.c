@@ -17,10 +17,6 @@ struct msgbuf
     char mtext2[500];
 };
 
-struct command
-{
-    char *arg[20];
-};
 
 int getKey(char *name)
 {
@@ -93,11 +89,16 @@ int main(int argc, char* argv[])
                 exit(1);
             }
             
+            
             if(mkfifo(mkfifoName,0666) == -1){
                 perror("Error: mkfifo failed");
                 exit(1);
             }else
             {
+                // int pdesk2;
+                // pdesk2 = open(mkfifoName,O_RDONLY);
+                // char buf[100];
+
                 strcpy(message2.mtext,commands);
                 strcpy(message2.mtext2,mkfifoName);
                 message2.mtype = 1;
@@ -106,6 +107,8 @@ int main(int argc, char* argv[])
                     perror("Error: msgsnd failed");
                     exit(1);
                 }
+                // read(pdesk2,buf,10);
+                // printf("odczytano %s",buf);
             }
         }
         else{
@@ -118,15 +121,7 @@ int main(int argc, char* argv[])
             }
             else
             {
-                // int pdesk;
-                // pdesk = open(message.mtext2,O_WRONLY);
-                // if(pdesk == -1)
-                // {
-                //     perror("Otwarcie potoku do zapisu");
-                //     exit(1);
-                // }
-                printf("\nreceive %s\n %s\n",message.mtext,message.mtext2);
-                struct command cmd[2];
+                printf("\nreceive %s\n",message.mtext);
 
                 char *p = strtok(message.mtext,"|");
                 char *q[10];
@@ -139,26 +134,29 @@ int main(int argc, char* argv[])
                 }
                 int k=0;
                 char *cm[10][20];
+                int cmdSize[10];
                 while(k<i)
-                {
-                    
+                {   
                     char *temp = strtok(q[k]," ");
                     int j=0;
                     while( temp != NULL)
                     {    
                         cm[k][j] = temp;
                         temp = strtok(NULL," ");
+                        j++;
                     }
+                    cmdSize[k] = j;
                     k++;
                 }
-                for(i=0; i<k;i++){
-                    for(int j=0; j<sizeof(cm[i]);i++){
-                        printf("%s",cm[i][j]);
-                    }
-                }
             }
-
-            
+            // int pdesk;
+            // pdesk = open(message.mtext2,O_WRONLY);
+            // if(pdesk == -1)
+            // {
+            //     perror("Otwarcie potoku do zapisu");
+            //     exit(1);
+            // }
+            // write(pdesk,"Hello!",7);
         }
         
    }
