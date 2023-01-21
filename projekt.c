@@ -17,6 +17,11 @@ struct msgbuf
     char mtext2[500];
 };
 
+struct command
+{
+    const char **argv;
+};
+
 int getKey(char *name)
 {
     FILE *fp = fopen("configFile.txt", "r");
@@ -47,7 +52,7 @@ int getKey(char *name)
     return key;
 }
 
-int spawn_proc(int in, int out, char **cm)
+int spawn_proc(int in, int out, char *cm[])
 {
     pid_t pid;
 
@@ -163,7 +168,7 @@ int main(int argc, char *argv[])
             else
             {
                 printf("\nreceive %s\n", message.mtext);
-
+                
                 // Podzial komend i zapis ich do tablicy
                 char *p = strtok(message.mtext, "|");
                 char *q[10];
@@ -191,7 +196,8 @@ int main(int argc, char *argv[])
                     cmdSize[k] = j;
                     k++;
                 }
-                // Wykonywanie koment
+                
+                // Wykonywanie komend
                 int fd[2],in =0;
                 for (int ile = 0; ile < i - 1; ile++)
                 {
@@ -203,7 +209,8 @@ int main(int argc, char *argv[])
                 if (in != 0)
                     dup2 (in, 0);
                 
-                execvp (cm[i][0], cm[i]);
+                //printf("%s",cm[i-1][0]);
+                execvp (cm[i-1][0], cm [i-1]);
 
             }
 
