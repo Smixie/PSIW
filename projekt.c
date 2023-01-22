@@ -14,10 +14,9 @@
 struct msgbuf
 {
     long mtype;
-    char mtext[500];
-    char mtext2[500];
+    char mtext[1000];
+    char mtext2[1000];
 };
-
 
 int getKey(char *name)
 {
@@ -66,7 +65,6 @@ int spawn_proc(int in, int out, char *cm[])
             dup2(out, 1);
             close(out);
         }
-        printf("%s %s",cm[0],cm[1]);
         return execvp(cm[0], cm);
     }
     return pid;
@@ -132,9 +130,9 @@ int main(int argc, char *argv[])
                 {
                     int pdesk2;
                     pdesk2 = open(mkfifoName, O_RDONLY);
-                    char buf[100];
+                    char buf[10000];
 
-                    read(pdesk2, buf, 7);
+                    read(pdesk2, buf, sizeof(buf));
                     close(pdesk2);
                     unlink(mkfifoName);
                     printf("odczytano %s", buf);
@@ -152,6 +150,7 @@ int main(int argc, char *argv[])
                     }
                 }
             }
+            
         }
         else
         {
@@ -171,15 +170,6 @@ int main(int argc, char *argv[])
                 char *p = strtok(message.mtext, "|");
                 char *q[10];
                 int i = 0;
-
-                // Zapis przy pomocy kolejki FIFO
-                int pdesk;
-                pdesk = open(message.mtext2, O_WRONLY);
-                if (pdesk == -1)
-                {
-                    perror("Otwarcie potoku do zapisu");
-                    exit(1);
-                }
 
                 while (p != NULL)
                 {
@@ -206,9 +196,18 @@ int main(int argc, char *argv[])
                 }
                 
                 // Wykonywanie komend
+                int fd[2],in = 0;
                 if(fork() == 0)
                 {
-                    int fd[2],in =0;
+                    // Zapis przy pomocy kolejki FIFO
+                    int pdesk;
+                    pdesk = open(message.mtext2, O_WRONLY);
+                    if (pdesk == -1)
+                    {
+                        perror("Otwarcie potoku do zapisu");
+                        exit(1);
+                    }
+
                     for (int ile = 0; ile < i - 1; ile++)
                     {
                         pipe(fd);
@@ -217,11 +216,16 @@ int main(int argc, char *argv[])
                         in = fd[0];
                     }
                     if (in != 0)
-                        dup2 (in, 0);
-                    execvp (cm[i-1][0], cm [i-1]);
+                        dup2 (in, 0); 
+                    
+                    execvp(cm[i-1][0], cm[i-1]);
+                    dup2(in,1);
+                    close(fd[1]);                
+                    }
+                else
+                {
+                    wait(NULL);
                 }
-                write(pdesk, "Hello!", 7);
-                close(pdesk);
             }  
         }
     }
