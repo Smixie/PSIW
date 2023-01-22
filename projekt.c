@@ -132,7 +132,11 @@ int main(int argc, char *argv[])
                     pdesk2 = open(mkfifoName, O_RDONLY);
                     char buf[10000];
 
-                    read(pdesk2, buf, sizeof(buf));
+                    int n;
+                    while((n = read(pdesk2,buf,sizeof(buf))) > 0)
+                    {
+                        printf("%s",buf);
+                    }
                     close(pdesk2);
                     unlink(mkfifoName);
                     printf("odczytano %s", buf);
@@ -215,13 +219,12 @@ int main(int argc, char *argv[])
                         close(fd[1]);
                         in = fd[0];
                     }
+                    dup2(pdesk,1);
                     if (in != 0)
                         dup2 (in, 0); 
                     
                     execvp(cm[i-1][0], cm[i-1]);
-                    dup2(in,1);
-                    close(fd[1]);                
-                    }
+                }
                 else
                 {
                     wait(NULL);
