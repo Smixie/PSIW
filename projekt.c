@@ -106,6 +106,10 @@ int main(int argc, char *argv[])
             printf("actual user %s > ", argv[1]);
             // i = readline(" ");
             scanf("%s \"%[^\"]\" %s", input, commands, mkfifoName);
+            if(strcmp(input,"2137") == 0)
+            {
+                break;
+            }
 
             secondKey = getKey(input);
             // Tworzenie kolejki komunikatów dla wywolanego polecenia
@@ -153,15 +157,12 @@ int main(int argc, char *argv[])
                         exit(1);
                     }
                 }
-            }
-            
+            }    
         }
         else
         {
-            int rozmiar;
             // Odbior wyslanej wiadomoci
-            rozmiar = msgrcv(msgID, &message, sizeof(message), 1, 0);
-            if (rozmiar == -1)
+            if (msgrcv(msgID, &message, sizeof(message), 1, 0) == -1)
             {
                 perror("Error: msgrcv failed");
                 exit(1);
@@ -224,6 +225,7 @@ int main(int argc, char *argv[])
                         dup2 (in, 0); 
                     
                     execvp(cm[i-1][0], cm[i-1]);
+                    close(pdesk);
                 }
                 else
                 {
