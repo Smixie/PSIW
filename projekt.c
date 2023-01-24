@@ -17,7 +17,7 @@ struct msgbuf
     char mtext[1000];
     char mtext2[1000];
 };
-
+/*
 int getKey(char *name)
 {
     FILE *fp = fopen("configFile.txt", "r");
@@ -44,6 +44,61 @@ int getKey(char *name)
     if (key == 0)
     {
         printf("Key error\n");
+    }
+    return key;
+}
+*/
+
+int getKey2(char *name)
+{
+    int file = open("configFile.txt", O_RDONLY);
+    char buf[100];
+    if (file == -1)
+    {
+        perror("Error opening file!");
+        exit(1);
+    }
+    read(file, buf, sizeof(buf));
+    close(file);
+
+    char *array[20];
+    int key = 0, i = 0;
+    char *line = strtok(buf, "\n");
+    while (line != NULL)
+    {
+        array[i] = line;
+        line = strtok(NULL, "\n");
+        i++;
+    }
+
+    int k = 0;
+    char *clients[20][2];
+
+    while (k < i)
+    {
+        char *temp = strtok(array[k], " : ");
+        int j = 0;
+        while (temp != NULL)
+        {
+            clients[k][j] = temp;
+            temp = strtok(NULL, " : ");
+            j++;
+        }
+        k++;
+    }
+
+    for (int j = 0; j < i; j++)
+    {
+        if (strcmp(clients[j][0], name) == 0)
+        {
+            key = atoi(clients[j][1]);
+            break;
+        }
+    }
+
+    if (key == 0)
+    {
+        printf("No key found\n");
     }
     return key;
 }
@@ -79,7 +134,7 @@ int main(int argc, char *argv[])
         printf("Usage: %s <usr>", argv[0]);
     }
 
-    key = getKey(argv[1]);
+    key = getKey2(argv[1]);
 
     // Tworzenie globalnej komunikacji
     int msgID;
@@ -106,14 +161,15 @@ int main(int argc, char *argv[])
             printf("actual user %s > ", argv[1]);
             // i = readline(" ");
             scanf("%s \"%[^\"]\" %s", input, commands, mkfifoName);
-            if(strcmp(input,"2137") == 0)
+            if (strcmp(input, "2137") == 0)
             {
                 break;
             }
 
-            secondKey = getKey(input);
+            secondKey = getKey2(input);
             // Tworzenie kolejki komunikatów dla wywolanego polecenia
             msgID2 = msgget(secondKey, IPC_CREAT | 0666);
+            //printf("%d", msgID2);
             if (msgID2 == -1)
             {
                 perror("Error: msgget failed");
@@ -135,15 +191,14 @@ int main(int argc, char *argv[])
                     int pdesk2;
                     pdesk2 = open(mkfifoName, O_RDONLY);
                     char buf[10000];
-
+                    printf("\n");
                     int n;
-                    while((n = read(pdesk2,buf,sizeof(buf))) > 0)
+                    while ((n = read(pdesk2, buf, sizeof(buf))) > 0)
                     {
-                        printf("%s",buf);
+                        printf("%s", buf);
                     }
                     close(pdesk2);
                     unlink(mkfifoName);
-                    printf("odczytano %s", buf);
                 }
                 else
                 {
@@ -157,7 +212,7 @@ int main(int argc, char *argv[])
                         exit(1);
                     }
                 }
-            }    
+            }
         }
         else
         {
@@ -170,7 +225,7 @@ int main(int argc, char *argv[])
             else
             {
                 printf("\nreceive %s\n", message.mtext);
-                
+
                 // Podzial komend i zapis ich do tablicy
                 char *p = strtok(message.mtext, "|");
                 char *q[10];
@@ -199,39 +254,39 @@ int main(int argc, char *argv[])
                     cmdSize[k] = j;
                     k++;
                 }
-                
+
                 // Wykonywanie komend
-                int fd[2],in = 0;
-                if(fork() == 0)
+                int fd[2], in = 0;
+                int pdesk;
+                if (fork() == 0)
                 {
                     // Zapis przy pomocy kolejki FIFO
-                    int pdesk;
                     pdesk = open(message.mtext2, O_WRONLY);
                     if (pdesk == -1)
                     {
                         perror("Otwarcie potoku do zapisu");
                         exit(1);
                     }
-
                     for (int ile = 0; ile < i - 1; ile++)
                     {
                         pipe(fd);
-                        spawn_proc(in,fd[1],cm[ile]);
+                        spawn_proc(in, fd[1], cm[ile]);
                         close(fd[1]);
                         in = fd[0];
                     }
-                    dup2(pdesk,1);
+
+                    dup2(pdesk, 1);
                     if (in != 0)
-                        dup2 (in, 0); 
-                    
-                    execvp(cm[i-1][0], cm[i-1]);
+                        dup2(in, 0);
+
+                    execvp(cm[i - 1][0], cm[i - 1]);
                     close(pdesk);
                 }
                 else
                 {
                     wait(NULL);
                 }
-            }  
+            }
         }
     }
     msgctl(msgID, IPC_RMID, NULL);
