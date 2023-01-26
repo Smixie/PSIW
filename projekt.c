@@ -5,8 +5,6 @@
 #include <sys/msg.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <readline/readline.h>
-#include <readline/history.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <wait.h>
@@ -22,12 +20,10 @@ int getKey(char *name)
 {
     FILE *fp = fopen("configFile.txt", "r");
     char line[50];
-
     char *array[2];
     int i = 0;
     while (fgets(line, 50, fp) != NULL)
     {
-
         char *ptr = strtok(line, " : ");
         if (strcmp(ptr, name) == 0)
         {
@@ -106,7 +102,6 @@ int getKey2(char *name)
 int spawn_proc(int in, int out, char *cm[])
 {
     pid_t pid;
-
     if ((pid = fork()) == 0)
     {
         if (in != 0)
@@ -274,8 +269,8 @@ int main(int argc, char *argv[])
                         close(fd[1]);
                         in = fd[0];
                     }
-
                     dup2(pdesk, 1);
+                    
                     if (in != 0)
                         dup2(in, 0);
 
